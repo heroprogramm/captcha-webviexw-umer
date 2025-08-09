@@ -87,14 +87,106 @@
         .log-success { color: #28a745; }
         .log-error { color: #dc3545; }
         .log-info { color: #17a2b8; }
+        
+        /* Form Styles */
+        .signup-form {
+            margin: 20px 0;
+        }
+        .form-group {
+            margin: 15px 0;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        .form-group input.valid {
+            border-color: #28a745;
+            background-color: #f8fff8;
+        }
+        .form-group input.invalid {
+            border-color: #dc3545;
+            background-color: #fff8f8;
+        }
+        .error-message {
+            display: block;
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 5px;
+            min-height: 16px;
+        }
+        .password-strength {
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .strength-weak { background: #f8d7da; color: #721c24; }
+        .strength-medium { background: #fff3cd; color: #856404; }
+        .strength-strong { background: #d4edda; color: #155724; }
+        .btn-large {
+            font-size: 18px;
+            padding: 15px 30px;
+        }
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔒 Captcha Verification</h1>
+        <h1>🔒 Sign Up - Account Registration</h1>
+        
+        <form id="signupForm" class="signup-form">
+            <div class="form-group">
+                <label for="email">📧 Email Address:</label>
+                <input type="email" id="email" name="email" required 
+                       placeholder="Enter your email address">
+                <span class="error-message" id="emailError"></span>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">🔒 Password:</label>
+                <input type="password" id="password" name="password" required 
+                       placeholder="Create a strong password">
+                <span class="error-message" id="passwordError"></span>
+            </div>
+            
+            <div class="form-group">
+                <label for="confirmPassword">🔒 Confirm Password:</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" required 
+                       placeholder="Confirm your password">
+                <span class="error-message" id="confirmPasswordError"></span>
+            </div>
+            
+            <div class="password-strength" id="passwordStrength"></div>
+        </form>
         
         <div class="captcha-section">
-            <h3>Complete the Captcha:</h3>
+            <h3>🤖 Verify you're human:</h3>
             
             <!-- reCAPTCHA Widget -->
             <div class="g-recaptcha" 
@@ -108,13 +200,18 @@
                 <p><strong>Math Challenge (if reCAPTCHA fails):</strong></p>
                 <p id="mathQuestion">5 + 3 = ?</p>
                 <input type="number" id="mathAnswer" placeholder="Enter answer">
-                <button onclick="checkMathCaptcha()" class="btn btn-primary">Verify</button>
-                <button onclick="showRecaptcha()" class="btn btn-secondary">Use reCAPTCHA instead</button>
+                <button type="button" onclick="checkMathCaptcha()" class="btn btn-primary">Verify</button>
+                <button type="button" onclick="showRecaptcha()" class="btn btn-secondary">Use reCAPTCHA instead</button>
             </div>
         </div>
         
         <div class="controls">
-            <button onclick="clearVerification()" class="btn btn-secondary">🔄 Reset Verification</button>
+            <button type="button" onclick="signUp()" class="btn btn-success btn-large">
+                ✅ Sign Up
+            </button>
+            <button type="button" onclick="clearForm()" class="btn btn-secondary">
+                🔄 Clear Form
+            </button>
         </div>
         
         <div id="status" class="status" style="display: none;"></div>
@@ -131,6 +228,162 @@
         let captchaVerified = false;
         let currentMathAnswer = 8; // For math captcha
 
+        // Form validation
+        function validateEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        function validatePassword(password) {
+            const minLength = password.length >= 8;
+            const hasUpper = /[A-Z]/.test(password);
+            const hasLower = /[a-z]/.test(password);
+            const hasNumber = /\d/.test(password);
+            const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+            
+            return {
+                minLength,
+                hasUpper,
+                hasLower,
+                hasNumber,
+                hasSpecial,
+                score: [minLength, hasUpper, hasLower, hasNumber, hasSpecial].filter(Boolean).length
+            };
+        }
+
+        function updatePasswordStrength() {
+            const password = document.getElementById('password').value;
+            const strengthDiv = document.getElementById('passwordStrength');
+            
+            if (!password) {
+                strengthDiv.innerHTML = '';
+                return;
+            }
+            
+            const validation = validatePassword(password);
+            let strengthText = '';
+            let strengthClass = '';
+            
+            if (validation.score <= 2) {
+                strengthText = '⚠️ Weak Password';
+                strengthClass = 'strength-weak';
+            } else if (validation.score <= 4) {
+                strengthText = '🟡 Medium Password';
+                strengthClass = 'strength-medium';
+            } else {
+                strengthText = '✅ Strong Password';
+                strengthClass = 'strength-strong';
+            }
+            
+            strengthDiv.innerHTML = strengthText;
+            strengthDiv.className = `password-strength ${strengthClass}`;
+        }
+
+        function validateForm() {
+            let isValid = true;
+            
+            // Clear previous errors
+            document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+            document.querySelectorAll('input').forEach(el => {
+                el.classList.remove('valid', 'invalid');
+            });
+            
+            // Validate email
+            const email = document.getElementById('email').value;
+            if (!email) {
+                document.getElementById('emailError').textContent = 'Email is required';
+                document.getElementById('email').classList.add('invalid');
+                isValid = false;
+            } else if (!validateEmail(email)) {
+                document.getElementById('emailError').textContent = 'Please enter a valid email address';
+                document.getElementById('email').classList.add('invalid');
+                isValid = false;
+            } else {
+                document.getElementById('email').classList.add('valid');
+            }
+            
+            // Validate password
+            const password = document.getElementById('password').value;
+            const validation = validatePassword(password);
+            
+            if (!password) {
+                document.getElementById('passwordError').textContent = 'Password is required';
+                document.getElementById('password').classList.add('invalid');
+                isValid = false;
+            } else if (validation.score < 3) {
+                document.getElementById('passwordError').textContent = 'Password is too weak (min 8 chars, include uppercase, lowercase, number)';
+                document.getElementById('password').classList.add('invalid');
+                isValid = false;
+            } else {
+                document.getElementById('password').classList.add('valid');
+            }
+            
+            // Validate confirm password
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            if (!confirmPassword) {
+                document.getElementById('confirmPasswordError').textContent = 'Please confirm your password';
+                document.getElementById('confirmPassword').classList.add('invalid');
+                isValid = false;
+            } else if (password !== confirmPassword) {
+                document.getElementById('confirmPasswordError').textContent = 'Passwords do not match';
+                document.getElementById('confirmPassword').classList.add('invalid');
+                isValid = false;
+            } else {
+                document.getElementById('confirmPassword').classList.add('valid');
+            }
+            
+            return isValid;
+        }
+
+        // Sign up function
+        function signUp() {
+            if (!validateForm()) {
+                showStatus('❌ Please fix the form errors above', 'error');
+                addLog('Form validation failed', 'error');
+                return;
+            }
+            
+            if (!captchaVerified) {
+                showStatus('❌ Please complete the captcha verification first!', 'error');
+                addLog('Sign up attempted without captcha verification', 'error');
+                return;
+            }
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            // Simulate successful registration
+            showStatus('🎉 Account created successfully! Welcome aboard!', 'success');
+            addLog(`Account created for email: ${email}`, 'success');
+            
+            // Display success message
+            const successMsg = document.createElement('div');
+            successMsg.className = 'success-message';
+            successMsg.innerHTML = `
+                <h3>✅ Registration Complete!</h3>
+                <p><strong>Email:</strong> ${email}</p>
+                <p>Your account has been created successfully. You can now log in!</p>
+                <button onclick="location.reload()" class="btn btn-primary">Register Another Account</button>
+            `;
+            
+            // Replace form with success message
+            document.querySelector('.container').innerHTML = successMsg.outerHTML;
+        }
+
+        // Clear form
+        function clearForm() {
+            document.getElementById('signupForm').reset();
+            document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+            document.querySelectorAll('input').forEach(el => {
+                el.classList.remove('valid', 'invalid');
+            });
+            document.getElementById('passwordStrength').innerHTML = '';
+            captchaVerified = false;
+            grecaptcha.reset();
+            showStatus('Form cleared. Please fill in your details again.', 'info');
+            addLog('Form cleared', 'info');
+        }
+
         // reCAPTCHA callbacks
         function onCaptchaSuccess(token) {
             captchaVerified = true;
@@ -140,7 +393,6 @@
             // Hide math captcha when reCAPTCHA is completed
             document.getElementById('mathCaptcha').style.display = 'none';
             
-            // Optional: Send token to your server for verification
             console.log('reCAPTCHA token:', token);
         }
 
@@ -149,7 +401,6 @@
             showStatus('❌ reCAPTCHA expired. Please verify again.', 'error');
             addLog('reCAPTCHA expired', 'error');
             
-            // Show math captcha as backup
             document.getElementById('mathCaptcha').style.display = 'block';
         }
 
@@ -162,7 +413,7 @@
 
         function showRecaptcha() {
             document.getElementById('mathCaptcha').style.display = 'none';
-            grecaptcha.reset(); // Reset reCAPTCHA
+            grecaptcha.reset();
         }
 
         // Math Captcha (fallback)
@@ -184,20 +435,9 @@
             } else {
                 showStatus('❌ Incorrect answer. Try again.', 'error');
                 addLog('Math captcha verification failed', 'error');
-                generateMathCaptcha(); // Generate new question
+                generateMathCaptcha();
                 document.getElementById('mathAnswer').value = '';
             }
-        }
-
-        // Clear verification
-        function clearVerification() {
-            captchaVerified = false;
-            grecaptcha.reset(); // Reset reCAPTCHA
-            document.getElementById('mathCaptcha').style.display = 'none';
-            document.getElementById('mathAnswer').value = '';
-            generateMathCaptcha();
-            showStatus('Verification cleared. Please complete captcha again.', 'info');
-            addLog('Verification reset', 'info');
         }
 
         // UI Helper functions
@@ -207,7 +447,6 @@
             statusEl.className = `status ${type}`;
             statusEl.style.display = 'block';
             
-            // Auto-hide after 5 seconds for non-success messages
             if (type !== 'success') {
                 setTimeout(() => {
                     statusEl.style.display = 'none';
@@ -226,10 +465,42 @@
             logContainer.scrollTop = logContainer.scrollHeight;
         }
 
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add real-time validation
+            document.getElementById('password').addEventListener('input', updatePasswordStrength);
+            
+            document.getElementById('email').addEventListener('blur', function() {
+                const email = this.value;
+                if (email && !validateEmail(email)) {
+                    document.getElementById('emailError').textContent = 'Please enter a valid email address';
+                    this.classList.add('invalid');
+                } else if (email) {
+                    document.getElementById('emailError').textContent = '';
+                    this.classList.remove('invalid');
+                    this.classList.add('valid');
+                }
+            });
+            
+            document.getElementById('confirmPassword').addEventListener('input', function() {
+                const password = document.getElementById('password').value;
+                const confirmPassword = this.value;
+                
+                if (confirmPassword && password !== confirmPassword) {
+                    document.getElementById('confirmPasswordError').textContent = 'Passwords do not match';
+                    this.classList.add('invalid');
+                } else if (confirmPassword && password === confirmPassword) {
+                    document.getElementById('confirmPasswordError').textContent = '';
+                    this.classList.remove('invalid');
+                    this.classList.add('valid');
+                }
+            });
+        });
+
         // Initialize
         window.onload = function() {
             generateMathCaptcha();
-            addLog('Captcha Verification System loaded', 'success');
+            addLog('Sign Up System loaded', 'success');
         };
     </script>
 </body>
