@@ -1,11 +1,10 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Captcha WebView Timer</title>
+    <title>Captcha Verification System</title>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -21,61 +20,217 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         .timer {
-            font-size: 24px;
+            font-size: 32px;
             font-weight: bold;
-            color: #333;
+            color: #2196F3;
             text-align: center;
             margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
         }
-        .captcha {
+        .captcha-section {
             border: 2px solid #ddd;
             padding: 20px;
             text-align: center;
             margin: 20px 0;
+            border-radius: 8px;
+            background: #fafafa;
         }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-primary:hover { background: #0056b3; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #1e7e34; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #545b62; }
+        .status {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .logs {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            font-family: monospace;
+            font-size: 12px;
+            margin: 2px 0;
+            padding: 2px 5px;
+        }
+        .log-success { color: #28a745; }
+        .log-error { color: #dc3545; }
+        .log-info { color: #17a2b8; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Captcha WebView Timer</h1>
-        <div class="timer" id="timer">00:00</div>
-        <div class="captcha">
-            <p>Captcha area - Add your captcha component here</p>
+        <h1>🔒 Captcha Verification</h1>
+        
+        <div class="captcha-section">
+            <h3>Complete the Captcha:</h3>
+            
+            <!-- reCAPTCHA Widget -->
+            <div class="g-recaptcha" 
+                 data-sitekey="6Lerjp8rAAAAAFTJzhhe3kNCXaYSR8EjktL7mTgf" 
+                 data-callback="onCaptchaSuccess"
+                 data-expired-callback="onCaptchaExpired">
+            </div>
+            
+            <!-- Fallback: Simple Math Captcha (backup option) -->
+            <div id="mathCaptcha" style="margin-top: 15px; display: none;">
+                <p><strong>Math Challenge (if reCAPTCHA fails):</strong></p>
+                <p id="mathQuestion">5 + 3 = ?</p>
+                <input type="number" id="mathAnswer" placeholder="Enter answer">
+                <button onclick="checkMathCaptcha()" class="btn btn-primary">Verify</button>
+                <button onclick="showRecaptcha()" class="btn btn-secondary">Use reCAPTCHA instead</button>
+            </div>
         </div>
-        <button onclick="startTimer()">Start Timer</button>
-        <button onclick="stopTimer()">Stop Timer</button>
-        <button onclick="resetTimer()">Reset Timer</button>
+        
+        <div class="controls">
+            <button onclick="clearVerification()" class="btn btn-secondary">🔄 Reset Verification</button>
+        </div>
+        
+        <div id="status" class="status" style="display: none;"></div>
+        
+        <div class="logs">
+            <h4>Activity Log:</h4>
+            <div id="logContainer">
+                <div class="log-entry log-info">System initialized</div>
+            </div>
+        </div>
     </div>
 
     <script>
-        let seconds = 0;
-        let interval = null;
+        let captchaVerified = false;
+        let currentMathAnswer = 8; // For math captcha
 
-        function startTimer() {
-            if (interval) return;
-            interval = setInterval(() => {
-                seconds++;
-                updateDisplay();
-            }, 1000);
+        // reCAPTCHA callbacks
+        function onCaptchaSuccess(token) {
+            captchaVerified = true;
+            showStatus('✅ reCAPTCHA verified successfully! You are human.', 'success');
+            addLog('reCAPTCHA verification successful', 'success');
+            
+            // Hide math captcha when reCAPTCHA is completed
+            document.getElementById('mathCaptcha').style.display = 'none';
+            
+            // Optional: Send token to your server for verification
+            console.log('reCAPTCHA token:', token);
         }
 
-        function stopTimer() {
-            clearInterval(interval);
-            interval = null;
+        function onCaptchaExpired() {
+            captchaVerified = false;
+            showStatus('❌ reCAPTCHA expired. Please verify again.', 'error');
+            addLog('reCAPTCHA expired', 'error');
+            
+            // Show math captcha as backup
+            document.getElementById('mathCaptcha').style.display = 'block';
         }
 
-        function resetTimer() {
-            stopTimer();
-            seconds = 0;
-            updateDisplay();
+        function onCaptchaError() {
+            captchaVerified = false;
+            showStatus('❌ reCAPTCHA error. Using math captcha instead.', 'error');
+            addLog('reCAPTCHA error - switched to math captcha', 'error');
+            document.getElementById('mathCaptcha').style.display = 'block';
         }
 
-        function updateDisplay() {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            document.getElementById('timer').textContent = 
-                `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        function showRecaptcha() {
+            document.getElementById('mathCaptcha').style.display = 'none';
+            grecaptcha.reset(); // Reset reCAPTCHA
         }
+
+        // Math Captcha (fallback)
+        function generateMathCaptcha() {
+            const num1 = Math.floor(Math.random() * 10) + 1;
+            const num2 = Math.floor(Math.random() * 10) + 1;
+            currentMathAnswer = num1 + num2;
+            document.getElementById('mathQuestion').textContent = `${num1} + ${num2} = ?`;
+        }
+
+        function checkMathCaptcha() {
+            const userAnswer = parseInt(document.getElementById('mathAnswer').value);
+            
+            if (userAnswer === currentMathAnswer) {
+                captchaVerified = true;
+                showStatus('✅ Math captcha solved correctly! You are human.', 'success');
+                addLog('Math captcha verification successful', 'success');
+                document.getElementById('mathCaptcha').style.display = 'none';
+            } else {
+                showStatus('❌ Incorrect answer. Try again.', 'error');
+                addLog('Math captcha verification failed', 'error');
+                generateMathCaptcha(); // Generate new question
+                document.getElementById('mathAnswer').value = '';
+            }
+        }
+
+        // Clear verification
+        function clearVerification() {
+            captchaVerified = false;
+            grecaptcha.reset(); // Reset reCAPTCHA
+            document.getElementById('mathCaptcha').style.display = 'none';
+            document.getElementById('mathAnswer').value = '';
+            generateMathCaptcha();
+            showStatus('Verification cleared. Please complete captcha again.', 'info');
+            addLog('Verification reset', 'info');
+        }
+
+        // UI Helper functions
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+            
+            // Auto-hide after 5 seconds for non-success messages
+            if (type !== 'success') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Initialize
+        window.onload = function() {
+            generateMathCaptcha();
+            addLog('Captcha Verification System loaded', 'success');
+        };
     </script>
 </body>
 </html>
